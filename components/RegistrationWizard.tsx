@@ -6,6 +6,7 @@ import { Check, ChevronLeft, ChevronRight, ClipboardCopy, ExternalLink, LoaderCi
 import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { BATTING_STYLES, BOWLING_STYLES, ROLES, SIZES, TOURNAMENT } from "@/lib/constants";
+import { compressImage } from "@/lib/image-utils";
 import { registrationSchema, type RegistrationValues, validateFile } from "@/lib/validation";
 import { FileDropzone } from "./FileDropzone";
 import { ImageCropper } from "./ImageCropper";
@@ -24,19 +25,6 @@ function Confetti() {
 function SuccessScreen({ registrationCode }: { registrationCode: string }) {
   const message = encodeURIComponent(`I just registered for MAA MAHAMAYA CUP – KUMHARI, SEASON 01! My registration ID is ${registrationCode}. Join the cup: ${TOURNAMENT.siteUrl}/register`);
   return <div className="success-screen"><Confetti /><div className="success-inner"><div className="success-icon"><Check size={36} /></div><span className="eyebrow">Registration received</span><h1 className="display">You&apos;re in.</h1><p>Your details and payment proof are with the committee. The admin team will manually verify your payment, approve your registration, or contact you if anything needs clarification.</p><span className="registration-id">{registrationCode}</span><div className="hero-actions" style={{ justifyContent: "center" }}><a className="btn-primary" href={`https://wa.me/?text=${message}`} target="_blank" rel="noreferrer">Share on WhatsApp <ExternalLink size={15} /></a><Link href="/" className="btn-secondary">Back to home</Link></div></div></div>;
-}
-
-async function compressImage(file: File) {
-  if (!file.type.startsWith("image/")) return file;
-  const source = URL.createObjectURL(file);
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => { const element = new Image(); element.onload = () => resolve(element); element.onerror = reject; element.src = source; });
-    const scale = Math.min(1, 1600 / Math.max(image.naturalWidth, image.naturalHeight));
-    const canvas = document.createElement("canvas"); canvas.width = Math.max(1, Math.round(image.naturalWidth * scale)); canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
-    canvas.getContext("2d")?.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", .82));
-    return blob ? new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: "image/jpeg" }) : file;
-  } finally { URL.revokeObjectURL(source); }
 }
 
 export function RegistrationWizard() {
