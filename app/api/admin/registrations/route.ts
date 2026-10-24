@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     if (error) throw error;
     const rows = await Promise.all((data || []).map(async (row) => {
       const [photo, receipt] = await Promise.all([
-        row.photo_url ? Promise.resolve(supabase.storage.from("profile-photos").getPublicUrl(row.photo_url).data.publicUrl) : Promise.resolve(null),
+        row.photo_url ? Promise.resolve(`${request.nextUrl.origin}/api/public/profile-photo/${encodeURIComponent(row.id)}`) : Promise.resolve(null),
         row.receipt_url ? supabase.storage.from("receipts").createSignedUrl(row.receipt_url, 60 * 20) : Promise.resolve({ data: null })
       ]);
       return { ...row, photo_preview_url: photo || null, receipt_preview_url: receipt.data?.signedUrl || null };

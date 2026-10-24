@@ -6,30 +6,8 @@ import { validateFile } from "@/lib/validation";
 
 export const runtime = "nodejs";
 
-export async function GET(_request: Request, { params }: { params: { id: string } }) {
-  if (!isAdminTokenValid(cookies().get(COOKIE_NAME)?.value)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  try {
-    const supabase = getSupabaseAdmin();
-    const { data: registration, error } = await supabase
-      .from("registrations")
-      .select("photo_url")
-      .eq("id", params.id)
-      .single();
-    if (error) throw error;
-    if (!registration.photo_url) return NextResponse.json({ error: "No profile photo found." }, { status: 404 });
-
-    const { data: signed, error: signedError } = await supabase.storage
-      .from("receipts")
-      .createSignedUrl(registration.photo_url, 60);
-    if (signedError || !signed?.signedUrl) throw signedError || new Error("Could not create photo link.");
-    return NextResponse.redirect(signed.signedUrl);
-  } catch (error) {
-    console.error("admin_photo_view_error", error);
-    return NextResponse.json({ error: "Could not open the profile photo." }, { status: 500 });
-  }
+export async function GET(request: Request, { params }: { params: { id: string } }) {
+  return NextResponse.redirect(new URL(`/api/public/profile-photo/${encodeURIComponent(params.id)}`, request.url));
 }
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {
