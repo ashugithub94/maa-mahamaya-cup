@@ -10,6 +10,7 @@ type RegistrationStatus = "pending" | "approved" | "rejected";
 type RegistrationRow = {
   id: string;
   registration_code: string;
+  photo_url?: string | null;
   name: string;
   mobile: string;
   age: number;
@@ -49,6 +50,7 @@ export function AdminDashboard() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [photoUploadError, setPhotoUploadError] = useState("");
 
   async function loadRows() {
@@ -144,16 +146,33 @@ export function AdminDashboard() {
     rejected: rows.filter((row) => row.status === "rejected").length
   }), [rows]);
 
-  function exportCsv() {
-    const headers = ["Registration ID", "Name", "Mobile", "Age", "Jersey name", "Jersey number", "T-shirt", "Trouser", "Role", "Batting style", "Bowling style", "Notes", "Status", "Created at", "Profile photo URL", "Receipt URL"];
-    const lines = rows.map((row) => [row.registration_code, row.name, row.mobile, row.age, row.jersey_name, row.jersey_number, row.tshirt_size, row.trouser_size, row.role, row.batting_style, row.bowling_style, row.notes, row.status, row.created_at, row.photo_preview_url, row.receipt_preview_url].map(csvValue).join(","));
-    const blob = new Blob([[headers.map(csvValue).join(","), ...lines].join("\n")], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "mmc-registrations.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+  async function exportCsv() {
+    setExporting(true);
+    setError("");
+    try {
+      const query = new URLSearchParams({ search });
+      if (status !== "all") query.set("status", status);
+      const response = await fetch(`/api/admin/registrations/export?${query}`);
+      if (response.status === 401) {
+        setLoggedIn(false);
+        throw new Error("Your admin session has expired.");
+      }
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({})) as { error?: string };
+        throw new Error(result.error || "Could not export registrations.");
+      }
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "mmc-registrations-shareable.csv";
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 0);
+    } catch (exportError) {
+      setError(exportError instanceof Error ? exportError.message : "Could not export registrations.");
+    } finally {
+      setExporting(false);
+    }
   }
 
   if (!loggedIn) return (
@@ -171,7 +190,7 @@ export function AdminDashboard() {
   return (
     <div className="section-wrap">
       <div className="form-topbar"><span className="eyebrow">MM CUP / ADMIN</span><button type="button" className="btn-quiet" onClick={logout}><LogOut size={15} /> Log out</button></div>
-      <div className="admin-toolbar"><div><span className="eyebrow">Season 01 registrations</span><h1 className="display">The roster.</h1></div><div className="admin-controls"><input className="admin-search" value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void loadRows(); }} placeholder="Search name, mobile, ID" aria-label="Search registrations" /><select className="admin-select" value={status} onChange={(event) => { setStatus(event.target.value); setTimeout(() => void loadRows(), 0); }} aria-label="Filter status"><option value="all">All status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select><button type="button" className="btn-secondary" onClick={exportCsv}><Download size={15} /> CSV</button></div></div>
+      <div className="admin-toolbar"><div><span className="eyebrow">Season 01 registrations</span><h1 className="display">The roster.</h1></div><div className="admin-controls"><input className="admin-search" value={search} onChange={(event) => setSearch(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") void loadRows(); }} placeholder="Search name, mobile, ID" aria-label="Search registrations" /><select className="admin-select" value={status} onChange={(event) => { setStatus(event.target.value); setTimeout(() => void loadRows(), 0); }} aria-label="Filter status"><option value="all">All status</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option></select><button type="button" className="btn-secondary" onClick={() => void exportCsv()} disabled={exporting}><Download size={15} /> {exporting ? "Preparing..." : "Share CSV"}</button></div></div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 18, marginBottom: 18, color: "#8d98aa", fontSize: 12 }}><span><strong style={{ color: "#fff" }}>{counts.total}</strong> shown</span><span><strong style={{ color: "#f4c84b" }}>{counts.pending}</strong> pending</span><span><strong style={{ color: "#9ef0cf" }}>{counts.approved}</strong> approved</span><span><strong style={{ color: "#ff9e91" }}>{counts.rejected}</strong> rejected</span></div>
       {error && <div className="submit-error" style={{ marginBottom: 15 }}>{error}</div>}
       <div className="admin-table-wrap">

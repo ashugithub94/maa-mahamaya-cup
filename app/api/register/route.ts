@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     const receiptPath = `receipts/${crypto.randomUUID()}.${receiptExtension}`;
     const photoPath = photoFile ? `photos/${crypto.randomUUID()}.jpg` : null;
     const photoUpload = photoFile && photoPath
-      ? await supabase.storage.from("receipts").upload(photoPath, photoFile, { contentType: "image/jpeg", upsert: false })
+      ? await supabase.storage.from("profile-photos").upload(photoPath, photoFile, { contentType: "image/jpeg", upsert: false })
       : null;
     const receiptUpload = await supabase.storage.from("receipts").upload(receiptPath, receiptFile, { contentType: receiptFile.type, upsert: false });
     if (photoUpload?.error) throw photoUpload.error;

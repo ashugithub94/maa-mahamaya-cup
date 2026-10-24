@@ -40,6 +40,12 @@ insert into storage.buckets (id, name, public)
 values ('receipts', 'receipts', false)
 on conflict (id) do update set public = false;
 
+-- Profile photos are intentionally public so committee-shared CSV links do not expire.
+-- Payment receipts remain in the private receipts bucket below.
+insert into storage.buckets (id, name, public)
+values ('profile-photos', 'profile-photos', true)
+on conflict (id) do update set public = true;
+
 drop policy if exists "Public can upload registration files" on storage.objects;
 create policy "Public can upload registration files"
   on storage.objects for insert to anon, authenticated
